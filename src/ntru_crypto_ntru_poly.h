@@ -100,7 +100,7 @@ ntru_poly_check_min_weight(
 /* ntru_ring_mult_indices
  *
  * Multiplies ring element (polynomial) "a" by ring element (polynomial) "b"
- * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - 1).
+ * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - X - 1).
  * This is a convolution operation.
  *
  * Ring element "b" is a sparse trinary polynomial with coefficients -1, 0,
@@ -135,7 +135,7 @@ ntru_ring_mult_indices(
 /* ntru_ring_mult_product_indices
  *
  * Multiplies ring element (polynomial) "a" by ring element (polynomial) "b"
- * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - 1).
+ * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - X - 1).
  * This is a convolution operation.
  *
  * Ring element "b" is represented by the product form b1 * b2 + b3, where
@@ -173,7 +173,7 @@ ntru_ring_mult_product_indices(
 /* ntru_ring_mult_coefficients
  *
  * Multiplies ring element (polynomial) "a" by ring element (polynomial) "b"
- * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - 1).
+ * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - X - 1).
  * This is a convolution operation.
  *
  * Ring element "b" has coefficients in the range [0,N).
@@ -193,7 +193,7 @@ ntru_ring_mult_coefficients(
 
 /* ntru_ring_inv
  *
- * Finds the inverse of a polynomial, a, in (Z/2^rZ)[X]/(X^N - 1).
+ * Finds the inverse of a polynomial, a, in (Z/2^rZ)[X]/(X^N - X - 1).
  *
  * This assumes q is 2^r where 8 < r < 16, so that operations mod q can
  * wait until the end, and only 16-bit arrays need to be used.

@@ -839,7 +839,7 @@ ntru_crypto_ntru_decrypt(
  * Returns NTRU_ERROR_BASE + NTRU_NO_MEMORY if memory needed cannot be
  *  allocated from the heap.
  * Returns NTRU_ERROR_BASE + NTRU_FAIL if the polynomial generated for f is
- *  not invertible in (Z/qZ)[X]/(X^N - 1), which is extremely unlikely.
+ *  not invertible in (Z/qZ)[X]/(X^N - X - 1).
  *  Should this occur, this function should simply be invoked again.
  */
 
@@ -1069,7 +1069,7 @@ ntru_crypto_ntru_encrypt_keygen(
         
         ringel_buf1[0] = (ringel_buf1[0] + 1) & mod_q_mask;
 
-        /* find f^-1 in (Z/qZ)[X]/(X^N - 1) */
+        /* find f^-1 in (Z/qZ)[X]/(X^N - X - 1) */
 
         if (!ntru_ring_inv(ringel_buf1, params->N, params->q,
                            scratch_buf, ringel_buf2))

@@ -261,7 +261,7 @@ ntru_poly_check_min_weight(
 /* ntru_ring_mult_indices
  *
  * Multiplies ring element (polynomial) "a" by ring element (polynomial) "b"
- * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - 1).
+ * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - X - 1).
  * This is a convolution operation.
  *
  * Ring element "b" is a sparse trinary polynomial with coefficients -1, 0,
@@ -306,19 +306,20 @@ ntru_ring_mult_indices(
     {
         t[k] = 0;
     }
-    
+
     for (j = bi_P1_len; j < bi_P1_len + bi_M1_len; j++)
     {
         k = bi[j];
-        
+
         for (i = 0; k < N; ++i, ++k)
         {
             t[k] = t[k] + a[i];
         }
-        
+
         for (k = 0; i < N; ++i, ++k)
         {
             t[k] = t[k] + a[i];
+            t[k+1] = t[k+1] + a[i];
         }
     }
 
@@ -328,21 +329,22 @@ ntru_ring_mult_indices(
     {
         t[k] = -t[k];
     }
-    
+
     /* t[(i+k)%N] += sum i=0 through N-1 of a[i] for b[k] = +1 */
 
     for (j = 0; j < bi_P1_len; j++)
     {
         k = bi[j];
-        
+
         for (i = 0; k < N; ++i, ++k)
         {
             t[k] = t[k] + a[i];
         }
-        
+
         for (k = 0; i < N; ++i, ++k)
         {
             t[k] = t[k] + a[i];
+            t[k+1] = t[k+1] + a[i];
         }
     }
 
@@ -352,7 +354,7 @@ ntru_ring_mult_indices(
     {
         c[k] = t[k] & mod_q_mask;
     }
-    
+
     return;
 }
 
@@ -361,7 +363,6 @@ ntru_ring_mult_indices(
  *
  * Multiplies ring element (polynomial) "a" by ring element (polynomial) "b"
  * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - 1).
- * This is a convolution operation.
  *
  * Ring element "b" is represented by the product form b1 * b2 + b3, where
  * b1, b2, and b3 are each a sparse trinary polynomial with coefficients -1,
@@ -431,8 +432,7 @@ ntru_ring_mult_product_indices(
 /* ntru_ring_mult_coefficients
  *
  * Multiplies ring element (polynomial) "a" by ring element (polynomial) "b"
- * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - 1).
- * This is a convolution operation.
+ * to produce ring element (polynomial) "c" in (Z/qZ)[X]/(X^N - X - 1).
  *
  * Ring element "b" has coefficients in the range [0,N).
  *
@@ -448,37 +448,36 @@ ntru_ring_mult_coefficients(
     uint16_t        q,          /*  in - large modulus */
     uint16_t       *c)          /* out - address for polynomial c */
 {
-    uint16_t const *bptr = b;
-    uint16_t        mod_q_mask = q - 1;
-    uint16_t        i, k;
-    
-    ASSERT(a);
-    ASSERT(b);
-    ASSERT(c);
 
-    /* c[k] = sum(a[i] * b[k-i]) mod q */
+    uint16_t *cptr;
+    uint16_t  mod_q_mask = q - 1;
+    uint16_t  t;
+    uint16_t  k;
+    uint16_t  j;
 
     memset(c, 0, N * sizeof(uint16_t));
-    
+
     for (k = 0; k < N; k++)
     {
-        i = 0;
-        while (i <= k)
+        cptr = c+k;
+        for (j = 0; j < N-k; j++)
         {
-            c[k] += a[i++] * *bptr--;
+            (*cptr++) += a[k]*b[j];
         }
-        
-        bptr += N;
-        
-        while (i < N)
+        cptr = c;
+        for (; j < N; j++)
         {
-            c[k] += a[i++] * *bptr--;
+            t = a[k]*b[j];
+            (*cptr++) += t;
+            *cptr += t;
         }
-        
-        c[k] &= mod_q_mask;
-        ++bptr;
     }
-    
+
+    for (k = 0; k < N; k++)
+    {
+        c[k] &= mod_q_mask;
+    }
+
     return;
 }
 
@@ -539,10 +538,11 @@ ntru_ring_inv(
         if(f[i]) deg_f = i;
     }
 
-    /* g(X) = X^N - 1 */
+    /* g(X) = X^N - X - 1 */
 
+    memset(g, 0, N + 1);
     g[0] = 1;
-    memset(g + 1, 0, N - 1);
+    g[1] = 1;
     g[N] = 1;
     deg_g = N;
 
@@ -552,9 +552,14 @@ ntru_ring_inv(
     {
         /* while f[0] = 0, f(X) /= X, c(X) *= X, k++ */
 
-        for (i = 0; (i <= deg_f) && (f[i] == 0); ++i);
+        for (i = 0; (i <= deg_f) && (f[i] == 0); ++i)
+        {
+            ;
+        }
         if (i > deg_f)
+        {
             return FALSE;
+        }
         if (i) {
             f = f + i;
             deg_f = deg_f - i;
@@ -629,26 +634,45 @@ ntru_ring_inv(
         }
     }
 
-    /* a^-1 in (Z/2Z)[X]/(X^N - 1) = b(X) shifted left k coefficients */
-
-    j = 0;
-
-    if (k >= N)
+    /* c = x^-k */
+    if(k > N)
     {
-        k = k - N;
+        k -= N;
+
+        memset(c, 1, N);
+        c[0] = k&1;
+        for(j=N-k; j<N; j+=2)
+        {
+            c[j] = 0;
+        }
+    }
+    else
+    {
+        memset(c, 0, N);
+        c[0] = 1;
+        for(j=N-k; j<N; j++)
+        {
+            c[j] ^= 1;
+        }
     }
 
-    for (i = k; i < N; i++)
+    /* a_inv = b * c = b * x^-k */
+    memset(a_inv, 0, N * sizeof(uint16_t));
+    for (j = 0; j < N; j++)
     {
-        a_inv[j++] = (uint16_t)(b[i]);
+        for (i = 0; i < N-j; i++)
+        {
+            a_inv[i+j] ^= (uint16_t)(b[i]&c[j]);
+        }
+
+        for (; i < N; i++)
+        {
+            a_inv[i+j-N] ^= (uint16_t)(b[i]&c[j]);
+            a_inv[i+j+1-N] ^= (uint16_t)(b[i]&c[j]);
+        }
     }
 
-    for (i = 0; i < k; i++)
-    {
-        a_inv[j++] = (uint16_t)(b[i]);
-    }
-
-    /* lift a^-1 in (Z/2Z)[X]/(X^N - 1) to a^-1 in (Z/qZ)[X]/(X^N -1) */
+    /* lift a^-1 in (Z/2Z)[X]/(X^N-X-1) to a^-1 in (Z/qZ)[X]/(X^N-X-1) */
 
     for (j = 0; j < 4; ++j)   /* assumes 256 < q <= 65536 */
     {
