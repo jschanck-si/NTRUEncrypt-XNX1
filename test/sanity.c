@@ -145,19 +145,13 @@ main(void)
       public_key = (uint8_t *)malloc(public_key_len * sizeof(uint8_t));
       private_key = (uint8_t *)malloc(private_key_len * sizeof(uint8_t));
 
-      rc = ntru_crypto_ntru_encrypt_keygen(drbg, param_set_id, &public_key_len,
-                                           public_key,
-                                           &private_key_len,
-                                           private_key);
-      if (rc != NTRU_OK)
+      do
       {
-        ntru_crypto_drbg_uninstantiate(drbg);
-        free(public_key);
-        free(private_key);
-        fprintf(stderr,"\tError: An error occurred during key generation\n");
-        error[i] = 1;
-        continue;
-      }
+        rc = ntru_crypto_ntru_encrypt_keygen(drbg, param_set_id,
+                                             &public_key_len, public_key,
+                                             &private_key_len, private_key);
+      } while(rc != NTRU_OK);
+
 
       rc = ntru_crypto_ntru_encrypt(drbg, public_key_len, public_key, 0, NULL,
                                     &ciphertext_len, NULL);
